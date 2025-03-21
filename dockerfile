@@ -6,8 +6,23 @@ RUN apt-get update && apt-get install -y \
     wget \
     unzip \
     chromium \
-    chromium-driver \
-    libgconf-2-4
+    libgconf-2-4 \
+    libnss3 \
+    libatk1.0-0 \
+    libpango-1.0-0 \
+    libasound2 \
+    libxshm1
+
+# Get the Chrome version
+RUN CHROME_VERSION=$(chromium --version | sed -E 's/Chromium ([0-9]+)\..*/\1/')
+
+# Download chromedriver matching the chrome version.
+RUN wget "https://chromedriver.storage.googleapis.com/LATEST_RELEASE_${CHROME_VERSION}" -O chromedriver_version.txt
+RUN CHROMEDRIVER_VERSION=$(cat chromedriver_version.txt)
+RUN wget "https://chromedriver.storage.googleapis.com/${CHROMEDRIVER_VERSION}/chromedriver_linux64.zip"
+RUN unzip chromedriver_linux64.zip
+RUN mv chromedriver /usr/local/bin/chromedriver
+RUN chmod +x /usr/local/bin/chromedriver
 
 # Set working directory
 WORKDIR /app

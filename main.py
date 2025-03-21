@@ -12,7 +12,6 @@ import json
 import os
 import time
 
-
 while True:
     options = Options()
 
