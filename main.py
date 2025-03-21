@@ -11,15 +11,19 @@ import urllib.parse
 import json
 import os
 import time
+from selenium.webdriver.chrome.service import Service  # Import Service
 
 while True:
     options = Options()
-
     options.add_argument('--headless')
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
 
-    driver = webdriver.Chrome(options=options)
+    service = Service(executable_path="/usr/local/bin/chromedriver") # Explicitly set chromedriver path
+    driver = webdriver.Chrome(service=service, options=options)
+
+    print(driver.capabilities['browserVersion']) #print the chrome version.
+
     driver.get('https://mollygram.com/')
 
     search_input = driver.find_element(By.ID, "link")
@@ -35,7 +39,7 @@ while True:
                 EC.presence_of_element_located((By.CLASS_NAME, "load"))
             )
             found = True
-        except TimeoutException:        
+        except TimeoutException:
             search_input.send_keys("2.kasar", Keys.ENTER)
             retry_count += 1
 
