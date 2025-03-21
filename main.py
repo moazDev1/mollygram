@@ -7,20 +7,19 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.keys import Keys
 from telegram_bot import send_telegram_message
+from webdriver_manager.chrome import ChromeDriverManager
 import urllib.parse
 import json
 import os
 import time
 
-
 while True:
     options = Options()
-
     options.add_argument('--headless')
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
 
-    driver = webdriver.Chrome(options=options)
+    driver = webdriver.Chrome(ChromeDriverManager().install(), options=options)
     driver.get('https://mollygram.com/')
 
     search_input = driver.find_element(By.ID, "link")
@@ -32,11 +31,11 @@ while True:
 
     while retry_count < max_retries and not found:
         try:
-            element = WebDriverWait(driver, 15).until(
+            WebDriverWait(driver, 15).until(
                 EC.presence_of_element_located((By.CLASS_NAME, "load"))
             )
             found = True
-        except TimeoutException:        
+        except TimeoutException:
             search_input.send_keys("2.kasar", Keys.ENTER)
             retry_count += 1
 
@@ -61,7 +60,6 @@ while True:
 
         return None
 
-    urls = []
     links = {}
 
     for story in stories:
