@@ -15,12 +15,13 @@ import time
 
 while True:
     options = Options()
+    options.binary_location = "/usr/bin/chromium"
     options.add_argument('--headless')
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
 
-    # Use system-installed Chromedriver
-    service = Service("/usr/lib/chromium-browser/chromedriver")
+    # Correct Chromedriver path for Railway
+    service = Service("/usr/bin/chromedriver")
 
     driver = webdriver.Chrome(service=service, options=options)
     driver.get('https://mollygram.com/')
