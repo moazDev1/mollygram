@@ -1,7 +1,7 @@
 import requests
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from selenium.webdriver.firefox.options import Options
+from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
@@ -13,12 +13,11 @@ import os
 
 options = Options()
 
-options.add_argument('--headless')  
-options.add_argument('--disable-blink-features=AutomationControlled')
-options.add_argument('--window-size=1920,1080')
-options.add_argument('--user-agent=Mozilla/5.0 ...')
+options.add_argument('--headless')
+options.add_argument('--no-sandbox')
+options.add_argument('--disable-dev-shm-usage')
 
-driver = webdriver.Firefox(options=options)
+driver = webdriver.Chrome(options=options)
 driver.get('https://mollygram.com/')
 
 search_input = driver.find_element(By.ID, "link")
