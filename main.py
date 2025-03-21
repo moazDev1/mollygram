@@ -8,7 +8,6 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.keys import Keys
 from telegram_bot import send_telegram_message
-from webdriver_manager.chrome import ChromeDriverManager
 import urllib.parse
 import json
 import os
@@ -20,7 +19,9 @@ while True:
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
 
-    service = Service(ChromeDriverManager().install())
+    # Use system-installed Chromedriver
+    service = Service("/usr/lib/chromium-browser/chromedriver")
+
     driver = webdriver.Chrome(service=service, options=options)
     driver.get('https://mollygram.com/')
 
