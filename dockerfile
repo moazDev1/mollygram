@@ -1,34 +1,53 @@
-FROM python:3.12-slim
+# Use a Python base image
+FROM python:3.12-slim-bookworm
 
-# Install Chrome and Chromedriver
+# Install necessary dependencies
 RUN apt-get update && apt-get install -y \
-    wget curl unzip gnupg \
-    libglib2.0-0 libnss3 libgconf-2-4 libfontconfig1 libxss1 libappindicator3-1 \
-    libasound2 libatk-bridge2.0-0 libatk1.0-0 libgtk-3-0 \
-    && rm -rf /var/lib/apt/lists/*
+    wget \
+    unzip \
+    chromium \
+    libgconf-2-4 \
+    libnss3 \
+    libatk1.0-0 \
+    libpango-1.0-0 \
+    libasound2 \
+    libxshm1
 
-# Install Chrome
-RUN wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && \
-    apt install -y ./google-chrome-stable_current_amd64.deb && \
-    rm google-chrome-stable_current_amd64.deb
+# Get the Chrome version
+RUN CHROME_VERSION=$(chromium --version | sed -E 's/Chromium ([0-9]+)\..*/\1/')
 
-# Install Chromedriver (version must match Chrome)
-RUN CHROME_VERSION=$(google-chrome --version | grep -oP "\d+\.\d+\.\d+") && \
-    CHROMEDRIVER_VERSION=$(curl -sS "https://chromedriver.storage.googleapis.com/LATEST_RELEASE_$CHROME_VERSION") && \
-    wget -q "https://chromedriver.storage.googleapis.com/$CHROMEDRIVER_VERSION/chromedriver_linux64.zip" && \
-    unzip chromedriver_linux64.zip && \
-    mv chromedriver /usr/local/bin/chromedriver && \
-    chmod +x /usr/local/bin/chromedriver && \
-    rm chromedriver_linux64.zip
+# Download chromedriver matching the chrome version.
+RUN wget "https://chromedriver.storage.googleapis.com/LATEST_RELEASE_${CHROME_VERSION}" -O chromedriver_version.txt
+RUN CHROMEDRIVER_VERSION=$(cat chromedriver_version.txt)
+RUN wget "https://chromedriver.storage.googleapis.com/${CHROMEDRIVER_VERSION}/chromedriver_linux64.zip"
+RUN unzip chromedriver_linux64.zip
+RUN mv chromedriver /usr/local/bin/chromedriver
+RUN chmod +x /usr/local/bin/chromedriver
 
-# Set display env
-ENV DISPLAY=:99
+# Add debugging steps
+RUN ls -l /usr/local/bin/chromedriver
+RUN /usr/local/bin/chromedriver --version
 
-# Set workdir
+# Set working directory
 WORKDIR /app
-COPY . .
 
-# Install dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy requirements file
+COPY requirements.txt .
 
+# Create and activate virtual environment
+RUN python3 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Install Python dependencies
+RUN pip install --upgrade pip
+RUN pip install -r requirements.txt
+
+# Copy your application code
+COPY main.py .
+COPY telegram_bot.py . 
+
+# Set binary location
+ENV CHROMIUM_BIN=/usr/bin/chromium
+
+# Run the script
 CMD ["python", "main.py"]
