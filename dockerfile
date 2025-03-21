@@ -27,9 +27,7 @@ RUN pip install -r requirements.txt
 COPY main.py .
 COPY telegram_bot.py .
 
-# Set chromedriver path - since we install chromium-driver it will be found in PATH, so no need for specific path.
 # Set binary location
-ENV CHROMEDRIVER_PATH=/usr/lib/chromium/chromedriver
 ENV CHROMIUM_BIN=/usr/bin/chromium
 
 # Run the script

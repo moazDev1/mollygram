@@ -2,28 +2,25 @@ import requests
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.keys import Keys
+from telegram_bot import send_telegram_message
 import urllib.parse
 import json
 import os
 import time
 
-from telegram_bot import send_telegram_message
 
 while True:
     options = Options()
+
     options.add_argument('--headless')
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
-    options.binary_location = "/usr/bin/chromium"
 
-    service = Service("/usr/lib/chromium/chromedriver")
-
-    driver = webdriver.Chrome(service=service, options=options)
+    driver = webdriver.Chrome(options=options)
     driver.get('https://mollygram.com/')
 
     search_input = driver.find_element(By.ID, "link")
@@ -35,11 +32,11 @@ while True:
 
     while retry_count < max_retries and not found:
         try:
-            WebDriverWait(driver, 15).until(
+            element = WebDriverWait(driver, 15).until(
                 EC.presence_of_element_located((By.CLASS_NAME, "load"))
             )
             found = True
-        except TimeoutException:
+        except TimeoutException:        
             search_input.send_keys("2.kasar", Keys.ENTER)
             retry_count += 1
 
@@ -64,6 +61,7 @@ while True:
 
         return None
 
+    urls = []
     links = {}
 
     for story in stories:
@@ -72,8 +70,7 @@ while True:
             id = get_id(img_src)
             url = f"http://tinyurl.com/api-create.php?url={img_src}"
             link = requests.get(url).text
-            if id:
-                links[id] = link
+            links[id] = link
         except:
             try:
                 video = story.find_element(By.TAG_NAME, "video")
@@ -81,8 +78,7 @@ while True:
                 id = get_id(vid_src)
                 url = f"http://tinyurl.com/api-create.php?url={vid_src}"
                 link = requests.get(url).text
-                if id:
-                    links[id] = link
+                links[id] = link
             except:
                 pass
 
@@ -103,8 +99,7 @@ while True:
             new_links.append(link)
             existing_links[id] = link
 
-    if new_links:
-        send_telegram_message(new_links)
+    send_telegram_message(new_links)
 
     try:
         with open("links.json", "w", encoding="utf-8") as f:
