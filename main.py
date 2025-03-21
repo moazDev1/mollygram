@@ -1,28 +1,29 @@
 import requests
 from selenium import webdriver
-from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.keys import Keys
-from telegram_bot import send_telegram_message
+from telegram_bot import send_telegram_message  # your custom module
 import urllib.parse
 import json
 import os
 import time
 
-
 while True:
     options = Options()
-
+    options.binary_location = "/usr/bin/chromium"
     options.add_argument('--headless')
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
 
-    driver = webdriver.Chrome(options=options)
-    driver.get('https://mollygram.com/')
+    service = Service("/usr/bin/chromedriver")
+    driver = webdriver.Chrome(service=service, options=options)
 
+    driver.get('https://mollygram.com/')
     search_input = driver.find_element(By.ID, "link")
     search_input.send_keys("2.kasar", Keys.ENTER)
 
@@ -32,11 +33,9 @@ while True:
 
     while retry_count < max_retries and not found:
         try:
-            element = WebDriverWait(driver, 15).until(
-                EC.presence_of_element_located((By.CLASS_NAME, "load"))
-            )
+            WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.CLASS_NAME, "load")))
             found = True
-        except TimeoutException:        
+        except TimeoutException:
             search_input.send_keys("2.kasar", Keys.ENTER)
             retry_count += 1
 
@@ -61,7 +60,6 @@ while True:
 
         return None
 
-    urls = []
     links = {}
 
     for story in stories:
@@ -107,4 +105,4 @@ while True:
     except:
         pass
 
-    time.sleep(300)
+    time.sleep(300)  # Sleep for 5 minutes
