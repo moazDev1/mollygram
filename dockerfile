@@ -1,26 +1,22 @@
-# Use slim Python image
 FROM python:3.12-slim
 
-# Install system dependencies for Chrome + Selenium
+# Install Chrome & dependencies
 RUN apt-get update && apt-get install -y \
-    chromium-driver \
-    chromium \
-    fonts-liberation \
-    curl \
-    unzip \
+    wget gnupg unzip curl chromium chromium-driver \
     && rm -rf /var/lib/apt/lists/*
 
 # Set environment variables for Chrome
 ENV CHROME_BIN=/usr/bin/chromium
-ENV PATH=$PATH:/usr/bin/chromium
+ENV CHROMEDRIVER_PATH=/usr/lib/chromium/chromedriver
 
-# Install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy your project files
-COPY . /app
+# Set working directory
 WORKDIR /app
 
-# Run your script
+# Copy code
+COPY . .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Run script
 CMD ["python", "main.py"]
