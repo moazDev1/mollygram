@@ -32,7 +32,7 @@ def get_id(url):
     return None
 
 while True:
-    service = Service(ChromeDriverManager().install())
+    service = Service("/usr/local/bin/chromedriver")
     options = webdriver.ChromeOptions()
     options.add_argument('--headless')
     options.add_argument('--no-sandbox')
