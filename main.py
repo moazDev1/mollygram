@@ -37,8 +37,7 @@ while True:
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
 
-    service = Service(ChromeDriverManager().install())
-    driver = webdriver.Chrome(service=service, options=options)
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager(version="114.0.5735.90").install()), options=options)
 
     driver.get('https://mollygram.com/')
     search_input = driver.find_element(By.ID, "link")
