@@ -1,29 +1,28 @@
-FROM ubuntu:latest
+# Use the official Python image from Docker Hub
+FROM python:3.8-slim
 
-# Install necessary dependencies
-RUN apt-get update && apt-get install -y \
-    wget \
-    unzip \
-    chromium \
-    libgconf-2-4 \
-    --no-install-recommends
+# Install system dependencies for Chrome and ChromeDriver
+RUN apt-get update && apt-get install -y wget curl unzip libnss3 libgdk-pixbuf2.0-0 \
+    libasound2 libxss1 libappindicator3-1 libatk-bridge2.0-0 libatk1.0-0 \
+    libgbm1 libgtk-3-0 ca-certificates
 
-# Set the working directory
+# Install Google Chrome
+RUN wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+RUN dpkg -i google-chrome-stable_current_amd64.deb || apt-get -f install -y
+
+# Install ChromeDriver
+RUN wget https://chromedriver.storage.googleapis.com/114.0.5735.90/chromedriver_linux64.zip
+RUN unzip chromedriver_linux64.zip -d /usr/local/bin
+
+# Set the working directory in the container
 WORKDIR /app
 
-# Download and install ChromeDriver (adjust version as needed)
-ARG CHROME_DRIVER_VERSION=114.0.5735.90 #Ensure this matches chromium version.
-RUN wget "https://chromedriver.storage.googleapis.com/${CHROME_DRIVER_VERSION}/chromedriver_linux64.zip" && \
-    unzip chromedriver_linux64.zip && \
-    mv chromedriver /usr/local/bin/ && \
-    chmod +x /usr/local/bin/chromedriver
-
-# Copy requirements.txt and install dependencies
-COPY requirements.txt /app/
+# Copy the requirements file and install dependencies
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy your application files
-COPY . /app
+# Copy the rest of your application code to the container
+COPY . .
 
-# Your Python script (example)
+# Command to run your app
 CMD ["python", "main.py"]
