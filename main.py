@@ -1,7 +1,6 @@
 import requests
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
@@ -11,18 +10,18 @@ import urllib.parse
 import json
 import os
 import time
-from selenium.webdriver.chrome.service import Service  # Import Service
 
 while True:
-    options = Options()
-    options.add_argument('--headless')
-    options.add_argument('--no-sandbox')
-    options.add_argument('--disable-dev-shm-usage')
+    chrome_options = webdriver.ChromeOptions()
+    chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
 
-    service = Service(executable_path="/usr/local/bin/chromedriver") # Explicitly set chromedriver path
-    driver = webdriver.Chrome(service=service, options=options)
-
-    print(driver.capabilities['browserVersion']) #print the chrome version.
+    # Connect to Railway's standalone-chrome container
+    driver = webdriver.Remote(
+        command_executor='http://standalone-chrome:4444/wd/hub',
+        options=chrome_options
+    )
 
     driver.get('https://mollygram.com/')
 
@@ -35,7 +34,7 @@ while True:
 
     while retry_count < max_retries and not found:
         try:
-            element = WebDriverWait(driver, 15).until(
+            WebDriverWait(driver, 15).until(
                 EC.presence_of_element_located((By.CLASS_NAME, "load"))
             )
             found = True
@@ -64,9 +63,7 @@ while True:
 
         return None
 
-    urls = []
     links = {}
-
     for story in stories:
         try:
             img_src = story.find_element(By.TAG_NAME, "img").get_attribute("src")
@@ -96,7 +93,6 @@ while True:
             pass
 
     new_links = []
-
     for id, link in links.items():
         if id not in existing_links:
             new_links.append(link)
