@@ -1,41 +1,49 @@
-# Use the Cypress base image with necessary dependencies for the browser
-FROM cypress/browsers:latest
+# FROM ubuntu:bionic
+FROM python:3.10
 
-# Install Python and pip if not already available
 RUN apt-get update && apt-get install -y \
-    python3 \
-    python3-pip \
-    build-essential \
-    libnss3 \
-    libatk-bridge2.0-0 \
-    libxss1 \
-    libgbm1 \
-    libasound2 \
-    libappindicator3-1 \
-    libatk1.0-0 \
-    libnspr4 \
-    && apt-get clean
+    # python3 python3-pip \
+    fonts-liberation libappindicator3-1 libasound2 libatk-bridge2.0-0 \
+    libnspr4 libnss3 lsb-release xdg-utils libxss1 libdbus-glib-1-2 \
+    curl unzip wget vim \
+    xvfb libgbm1 libu2f-udev libvulkan1
 
-# Ensure pip is up-to-date
-RUN python3 -m pip install --upgrade pip
+RUN CHROMEDRIVER_VERSION=`curl -sS chromedriver.storage.googleapis.com/LATEST_RELEASE` && \
+    wget https://chromedriver.storage.googleapis.com/$CHROMEDRIVER_VERSION/chromedriver_linux64.zip && \
+    unzip chromedriver_linux64.zip -d /usr/bin && \
+    chmod +x /usr/bin/chromedriver && \
+    rm chromedriver_linux64.zip
 
-# Copy the requirements.txt file into the container
-COPY requirements.txt .
+RUN CHROME_SETUP=google-chrome.deb && \
+    wget -O $CHROME_SETUP "https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb" && \
+    dpkg -i $CHROME_SETUP && \
+    # apt install $CHROME_SETUP && \
+    apt-get install -y -f && \
+    rm $CHROME_SETUP
 
-# Install the dependencies from the requirements.txt
-RUN pip3 install -r requirements.txt
+ENV LANG C.UTF-8
+ENV LC_ALL C.UTF-8
+ENV PYTHONUNBUFFERED=1
+ENV PATH="$PATH:/bin:/usr/bin"
 
-# Set permissions for chromedriver
-RUN chmod +x /root/.wdm/drivers/chromedriver/linux64/114.0.5735/chromedriver
+# RUN pip3 install pyvirtualdisplay
+# RUN pip3 install Selenium-Screenshot
+WORKDIR /app
 
-# Copy the rest of the application code into the container
-COPY . .
+# COPY requirements.txt /app
 
-# Set environment variable for PATH (where pip installs executables)
-ENV PATH /home/root/.local/bin:${PATH}
+COPY . /app
 
-# Expose the application port (this is the default Railway port)
-EXPOSE $PORT
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip3 install -r requirements.txt
 
-# Command to start the application with Uvicorn
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "$PORT"]
+# ENTRYPOINT ["python3"]
+CMD ["python3", "app.py"]
+
+# ENV APP_HOME /usr/src/app
+# WORKDIR /$APP_HOME
+
+# COPY . $APP_HOME/
+
+# CMD tail -f /dev/null
+# CMD python3 app.py
