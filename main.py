@@ -1,84 +1,80 @@
 import requests
 from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
-from selenium.webdriver.common.keys import Keys
 from telegram_bot import send_telegram_message
 import urllib.parse
 import json
 import os
 import time
+from webdriver_manager.chrome import ChromeDriverManager
+
+def get_id(url):
+    parsed = urllib.parse.urlparse(url)
+    query = urllib.parse.parse_qs(parsed.query)
+    media_encoded = query.get("media", [None])[0]
+    if media_encoded:
+        media_url = urllib.parse.unquote(media_encoded)
+        media_parsed = urllib.parse.urlparse(media_url)
+        media_query = urllib.parse.parse_qs(media_parsed.query)
+
+        ig_key = media_query.get("ig_cache_key", [None])[0]
+        if ig_key:
+            return f"img_{ig_key}"
+        vs = media_query.get("vs", [None])[0]
+        if vs:
+            return f"vid_{vs}"
+    return None
 
 while True:
-    chrome_options = webdriver.ChromeOptions()
-    chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
+    # Set up ChromeDriver with Service and ChromeDriverManager
+    service = Service(ChromeDriverManager().install())
+    
+    # Set up the Chrome options
+    options = webdriver.ChromeOptions()
+    options.add_argument('--headless')
+    options.add_argument('--no-sandbox')
+    options.add_argument('--disable-dev-shm-usage')
 
-    # Connect to Railway's standalone-chrome container
-    driver = webdriver.Remote(
-        command_executor='http://standalone-chrome:4444/wd/hub',
-        options=chrome_options
-    )
-
+    # Initialize WebDriver with service and options
+    driver = webdriver.Chrome(service=service, options=options)
+    
     driver.get('https://mollygram.com/')
 
     search_input = driver.find_element(By.ID, "link")
     search_input.send_keys("2.kasar", Keys.ENTER)
 
-    max_retries = 3
     retry_count = 0
-    found = False
-
-    while retry_count < max_retries and not found:
+    while retry_count < 3:
         try:
             WebDriverWait(driver, 15).until(
                 EC.presence_of_element_located((By.CLASS_NAME, "load"))
             )
-            found = True
+            break
         except TimeoutException:
             search_input.send_keys("2.kasar", Keys.ENTER)
             retry_count += 1
 
     stories = driver.find_elements(By.CLASS_NAME, "load")
 
-    def get_id(url):
-        parsed = urllib.parse.urlparse(url)
-        query = urllib.parse.parse_qs(parsed.query)
-        media_encoded = query.get("media", [None])[0]
-        if media_encoded:
-            media_url = urllib.parse.unquote(media_encoded)
-            media_parsed = urllib.parse.urlparse(media_url)
-            media_query = urllib.parse.parse_qs(media_parsed.query)
-
-            ig_key = media_query.get("ig_cache_key", [None])[0]
-            if ig_key:
-                return f"img_{ig_key}"
-
-            vs = media_query.get("vs", [None])[0]
-            if vs:
-                return f"vid_{vs}"
-
-        return None
-
     links = {}
     for story in stories:
         try:
             img_src = story.find_element(By.TAG_NAME, "img").get_attribute("src")
             id = get_id(img_src)
-            url = f"http://tinyurl.com/api-create.php?url={img_src}"
-            link = requests.get(url).text
-            links[id] = link
+            tiny = requests.get(f"http://tinyurl.com/api-create.php?url={img_src}").text
+            links[id] = tiny
         except:
             try:
                 video = story.find_element(By.TAG_NAME, "video")
                 vid_src = video.find_element(By.TAG_NAME, "source").get_attribute("src")
                 id = get_id(vid_src)
-                url = f"http://tinyurl.com/api-create.php?url={vid_src}"
-                link = requests.get(url).text
-                links[id] = link
+                tiny = requests.get(f"http://tinyurl.com/api-create.php?url={vid_src}").text
+                links[id] = tiny
             except:
                 pass
 
