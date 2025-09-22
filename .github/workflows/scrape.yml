@@ -10,7 +10,7 @@ on:
       - '.github/workflows/scrape.yml'
   schedule:
     - cron: "*/5 * * * *"                 # every 5 minutes (UTC)
-  workflow_dispatch:                       # manual "Run workflow" button
+  workflow_dispatch:                      
 
 jobs:
   run:
