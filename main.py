@@ -4,9 +4,12 @@ from bs4 import BeautifulSoup
 import urllib.parse
 import json
 import os
-from telegram_bot import send_telegram_message  # unchanged
+from telegram_bot import send_telegram_message
+from dotenv import load_dotenv
 
-user_name = "2.kasar"
+load_dotenv()
+
+user_name = os.environ["USER_NAME"]
 
 API_URL = f"https://media.mollygram.com/?url={user_name}&method=allstories"
 TINYURL_API = "http://tinyurl.com/api-create.php?url="
