@@ -6,7 +6,7 @@ import json
 import os
 from telegram_bot import send_telegram_message  # unchanged
 
-user_name = "xorioo10"
+user_name = "2.kasar"
 
 API_URL = f"https://media.mollygram.com/?url={user_name}&method=allstories"
 TINYURL_API = "http://tinyurl.com/api-create.php?url="
