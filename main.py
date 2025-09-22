@@ -1,20 +1,27 @@
+# pip install requests beautifulsoup4
 import requests
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException
-from selenium.webdriver.chrome.options import Options
+from bs4 import BeautifulSoup
 import urllib.parse
 import json
 import os
-import time
-from webdriver_manager.chrome import ChromeDriverManager
-from telegram_bot import send_telegram_message  
+from telegram_bot import send_telegram_message  # unchanged
 
-def get_id(url):
+user_name = "xorioo10"
+
+API_URL = f"https://media.mollygram.com/?url={user_name}&method=allstories"
+TINYURL_API = "http://tinyurl.com/api-create.php?url="
+LINKS_DB = "links.json"
+POLL_SECONDS = 30
+REQUEST_TIMEOUT = 20
+
+
+def get_id(url: str) -> str | None:
+    """
+    Reproduces your previous ID extraction from anon-viewer URLs.
+    Prefers ig_cache_key (images) then vs (videos).
+    """
+    if not url:
+        return None
     parsed = urllib.parse.urlparse(url)
     query = urllib.parse.parse_qs(parsed.query)
     media_encoded = query.get("media", [None])[0]
@@ -31,69 +38,111 @@ def get_id(url):
             return f"vid_{vs}"
     return None
 
-while True:
-    options = Options()
-    options.add_argument('--headless')
-    options.add_argument('--no-sandbox')
-    options.add_argument('--disable-dev-shm-usage')
 
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager(version="114.0.5735.90").install()), options=options)
-
-    driver.get('https://mollygram.com/')
-    search_input = driver.find_element(By.ID, "link")
-    search_input.send_keys("2.kasar", Keys.ENTER)
-
-    retry_count = 0
-    while retry_count < 3:
-        try:
-            WebDriverWait(driver, 15).until(
-                EC.presence_of_element_located((By.CLASS_NAME, "load"))
-            )
-            break
-        except TimeoutException:
-            search_input.send_keys("2.kasar", Keys.ENTER)
-            retry_count += 1
-
-    stories = driver.find_elements(By.CLASS_NAME, "load")
-    links = {}
-    for story in stories:
-        try:
-            img_src = story.find_element(By.TAG_NAME, "img").get_attribute("src")
-            id = get_id(img_src)
-            tiny = requests.get(f"http://tinyurl.com/api-create.php?url={img_src}").text
-            links[id] = tiny
-        except:
-            try:
-                video = story.find_element(By.TAG_NAME, "video")
-                vid_src = video.find_element(By.TAG_NAME, "source").get_attribute("src")
-                id = get_id(vid_src)
-                tiny = requests.get(f"http://tinyurl.com/api-create.php?url={vid_src}").text
-                links[id] = tiny
-            except:
-                pass
-
-    driver.quit()
-
-    existing_links = {}
-    if os.path.exists("links.json"):
-        try:
-            with open("links.json", "r", encoding="utf-8") as f:
-                existing_links = json.load(f)
-        except json.JSONDecodeError:
-            pass
-
-    new_links = []
-    for id, link in links.items():
-        if id not in existing_links:
-            new_links.append(link)
-            existing_links[id] = link
-
-    send_telegram_message(new_links)
-
+def fetch_html() -> str | None:
+    """
+    Calls the API endpoint and returns the 'html' field (or None on error).
+    """
     try:
-        with open("links.json", "w", encoding="utf-8") as f:
-            json.dump(existing_links, f, indent=2)
-    except:
+        resp = requests.get(API_URL, timeout=REQUEST_TIMEOUT)
+        resp.raise_for_status()
+        data = resp.json()
+        if isinstance(data, dict) and data.get("status") == "ok" and "html" in data:
+            return data["html"]
+    except requests.RequestException:
+        pass
+    except ValueError:
+        # JSON decode error
+        pass
+    return None
+
+
+def extract_media_links(html: str) -> dict[str, str]:
+    """
+    Parses the HTML and returns a dict[id] = media_url for all <img> and <video><source>.
+    Mirrors your Selenium-based selection inside elements with class 'load'.
+    """
+    soup = BeautifulSoup(html, "html.parser")
+    links: dict[str, str] = {}
+
+    for load in soup.select(".load"):
+        # Try image first
+        img = load.find("img")
+        if img and img.get("src"):
+            media_url = img["src"]
+            mid = get_id(media_url)
+            if mid:
+                links[mid] = media_url
+            continue  # consistent with your original priority (img vs video)
+
+        # Then try video
+        video = load.find("video")
+        if video:
+            source = video.find("source")
+            if source and source.get("src"):
+                media_url = source["src"]
+                mid = get_id(media_url)
+                if mid:
+                    links[mid] = media_url
+
+    return links
+
+
+def shorten(url: str) -> str | None:
+    try:
+        r = requests.get(TINYURL_API + urllib.parse.quote(url, safe=""), timeout=REQUEST_TIMEOUT)
+        r.raise_for_status()
+        return r.text.strip()
+    except requests.RequestException:
+        return None
+
+
+def load_existing() -> dict[str, str]:
+    if os.path.exists(LINKS_DB):
+        try:
+            with open(LINKS_DB, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, OSError):
+            return {}
+    return {}
+
+
+def save_existing(data: dict[str, str]) -> None:
+    try:
+        with open(LINKS_DB, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+    except OSError:
         pass
 
-    time.sleep(300)
+
+def main():
+    # while True:
+        html = fetch_html()
+        if html:
+            found = extract_media_links(html)
+
+            # Build short links for new IDs only
+            existing = load_existing()
+            new_short_links: list[str] = []
+
+            for mid, media_url in found.items():
+                if mid not in existing:
+                    tiny = shorten(media_url) or media_url  # fall back to original if shortening fails
+                    existing[mid] = tiny
+                    new_short_links.append(tiny)
+
+            # Notify only when there are new links
+            if new_short_links:
+                try:
+                    send_telegram_message(new_short_links)
+                except Exception:
+                    # Keep running even if Telegram send fails
+                    pass
+
+            save_existing(existing)
+
+        # time.sleep(POLL_SECONDS)
+
+
+if __name__ == "__main__":
+    main()
