@@ -1,19 +1,35 @@
 name: scrape-stories
 
 on:
+  push:                                   # run when these files change
+    branches: [ main ]
+    paths:
+      - 'main.py'
+      - 'telegram_bot.py'
+      - 'requirements.txt'
+      - '.github/workflows/scrape.yml'
   schedule:
-    - cron: "*/5 * * * *"   # every 5 minutes
-  workflow_dispatch:        # allow manual runs
+    - cron: "*/5 * * * *"                 # every 5 minutes (UTC)
+  workflow_dispatch:                       # manual "Run workflow" button
 
 jobs:
   run:
     runs-on: ubuntu-latest
+    concurrency:
+      group: scrape-stories               # prevent overlapping runs
+      cancel-in-progress: true
+    permissions:
+      contents: write                     # needed to push links.json
+
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: "pip"
 
       - name: Install deps
         run: |
@@ -24,6 +40,18 @@ jobs:
         env:
           USER_NAME: ${{ secrets.USER_NAME }}
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
-          CHAT_ID: ${{ secrets.CHAT_ID }}
+          CHAT_ID:   ${{ secrets.CHAT_ID }}
         run: |
           python main.py
+
+      # Optional: persist de-dupe state (links.json) back to repo
+      - name: Commit updated links.json
+        if: success()
+        run: |
+          if [[ -n "$(git status --porcelain links.json)" ]]; then
+            git config user.name  "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add links.json
+            git commit -m "Update links.json [skip ci]"
+            git push
+          fi
